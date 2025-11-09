@@ -2,13 +2,14 @@
 
 ## Brainstorming
 - Minimax
-- MonteCarlo
+- MCST
 - Strip
 - BFS
 - Heuristics
 - Knowledge base
 - Search optimization
 - Inference and domain reduction
+- Could try beam search rather than testing all moves
 
 ## Reminders
 - Do not run test locally
