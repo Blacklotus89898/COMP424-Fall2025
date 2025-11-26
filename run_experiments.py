@@ -39,7 +39,7 @@ def run_specific_maps():
         board_path=None, 
         board_roster_dir=map_folder, # Not strictly needed for this logic, but good practice
         display=False,               # Set True if you want to watch them
-        display_delay=0.4,
+        display_delay=0,
         display_save=False,
         display_save_path="plots/",
         autoplay=False,              # We are handling the looping manually
@@ -57,7 +57,7 @@ def run_specific_maps():
         print(f"Map: {map_path}")
 
         for s in range(2):
-            # Swap players every other game to ensure fairness (optional)
+            # Swap players every other game to ensure fairness
             swap = (s % 2 != 0)
             
             # Manually run the simulator on this specific map
