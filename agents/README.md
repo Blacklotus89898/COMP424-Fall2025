@@ -1,26 +1,32 @@
 # Ideas
 
+## Todos
+- [ ] Optimize the evaluation function (finetune heuristics)
+- [ ] MCTS param optimization and transposition table
+- [ ] Determine switch trigger
+- [ ] New heurisitcs (aka agressive for the walls map or smth)
+- [ ] Separate moves by types (duplicate vs move) + (exploration vs consolidation of neighbours)
+
 ## Brainstorming
 - Minimax
 - MCST
-- Strip
 - BFS
 - Heuristics
-- Knowledge base
+- Knowledge base, transposition table
 - Search optimization
 - Inference and domain reduction
-- Could try beam search rather than testing all moves
 
 ## Reminders
 - Do not run test locally
 - No external library
-- Nbr of turns cap
-- 2 sec
 
 ## Testing our agent:
 ```bash
+# Custom simulator wrapper (test over all maps with turn swap)
+python '.\run_experiments.py'
+
 # Simple game
-python simulator.py --player_1 random_agent --player_2 steve_agent --display 
+python simulator.py --player_1 greedy_corners_agent --player_2 steve_agent --display 
 
 # Multiple
 python simulator.py --player_1 steve_agent --player_2 random_agent --autoplay --autoplay_runs 100
