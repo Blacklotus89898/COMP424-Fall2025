@@ -172,12 +172,54 @@ class SebAgent(Agent):
 
     return (10 * score) + (6 * flips) - (3 * cluster) + (safe)
   
+  
   def eval(self, board, player, opp):
     if self.curr_empty_tiles > (self.initial_empty_tiles / 2):
       return self.first_half_eval(board, player, opp)
     
     else:
       return self.second_half_eval(board, player, opp)
+
+
+  def minimax(self, board, depth, alpha, beta, isMax, end_time):
+    endgame, _, _ = check_endgame(board)
+
+    if depth == 0 or endgame or time.time() >= end_time:
+      return self.eval(board, self.me, self.opp)
+    
+    if isMax:
+      best = - np.inf
+      moves = get_valid_moves(board, self.me)
+
+      for move in moves:
+        next_state = deepcopy(board)
+        execute_move(next_state, move, self.me)
+
+        val = self.minimax(next_state, depth-1, alpha, beta, False, end_time)
+        best = max(best, val)
+        alpha = max(best, alpha)
+
+        if beta <= alpha:
+          break
+
+      return best
+    
+    else:
+      best = np.inf
+      moves = get_valid_moves(board, self.opp)
+
+      for move in moves:
+        next_state = deepcopy(board)
+        execute_move(next_state, move, self.opp)
+
+        val = self.minimax(next_state, depth - 1, alpha, beta, True, end_time)
+        best = min(best, val)
+        beta = min(best, beta)
+
+        if beta <= alpha:
+          break
+      
+      return best
 
 
   def step(self, chess_board, player, opponent):
@@ -201,7 +243,7 @@ class SebAgent(Agent):
     # time_taken during your search and breaking with the best answer
     # so far when it nears 2 seconds.
     start_time = time.time()
-    
+    end_time = start_time + 1.8
     # Check how many empty tiles there are initially and currently.
     
     self.me = player
@@ -223,6 +265,21 @@ class SebAgent(Agent):
           if chess_board[r, c] == 0:
             self.curr_empty_tiles += 1
 
+    best_move = None
+    best_val = - np.inf
+
+    moves = get_valid_moves(chess_board, player)
+
+    for move in moves:
+      next_state = deepcopy(chess_board)
+      execute_move(next_state, move, player)
+
+      val = self.minimax(next_state, 2, -np.inf, np.inf, False, end_time)
+
+      if val > best_val:
+        best_val = val
+        best_move = move
+    
     self.turn += 1
     time_taken = time.time() - start_time
 
@@ -230,5 +287,5 @@ class SebAgent(Agent):
 
     # Dummy return (you should replace this with your actual logic)
     # Returning a random valid move as an example
-    return random_move(chess_board,player)
+    return best_move
 
