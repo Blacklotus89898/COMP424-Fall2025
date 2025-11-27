@@ -45,9 +45,9 @@ class SebAgent(Agent):
     return postions
   
 
-  def check_center_ctrl(self):
-    board_size = self.chess_board.shape[0]
-    center_board = self.chess_board[2:board_size-2, 2:board_size-2]
+  def check_center_ctrl(self, board, player, opp):
+    board_size = board.shape[0]
+    center_board = board[2:board_size-2, 2:board_size-2]
     center_size = center_board.shape[0]
 
     agent_score = 0
@@ -55,25 +55,25 @@ class SebAgent(Agent):
 
     for r in range(center_size):
       for c in range(center_size):
-        if center_board[r, c] == self.me:
+        if center_board[r, c] == player:
           agent_score += 1
 
-        elif center_board[r, c] == self.opp:
+        elif center_board[r, c] == opp:
           opp_score += 1
 
     return agent_score - opp_score
   
 
-  def check_clusters(self):
+  def check_clusters(self, board, player):
     agent_disks = set()
     cluster_score = 0
 
-    board_size = self.chess_board.shape[0]
+    board_size = board.shape[0]
     for r in range(board_size):
       for c in range(board_size):
         found_cluster = False
         curr = (r,c)
-        if self.chess_board[r, c] == self.me:
+        if board[r, c] == player:
 
           adjs = [(r, c+1),
                   (r+1, c+1),
@@ -82,7 +82,7 @@ class SebAgent(Agent):
           
           for next in adjs:
             if (next[0] < board_size) and (0 <= next[1] < board_size):
-              if self.chess_board[next[0], next[1]] == self.me:
+              if board[next[0], next[1]] == player:
                 found_cluster = True
 
                 if next not in agent_disks:
@@ -101,12 +101,12 @@ class SebAgent(Agent):
 
 
 
-  def check_safety(self):
-    opponent_moves = get_valid_moves(self.chess_board, self.opp)
+  def check_safety(self, board, player, opp):
+    opponent_moves = get_valid_moves(board, opp)
     opponent_dests = set()
-    disk_positions = self.get_disk_positions(self.me)
+    disk_positions = self.get_disk_positions(player)
     directions = get_directions()
-    board_size = self.get_board_size()
+    board_size = board.shape[0]
     safe_pieces = 0
 
     for move in opponent_moves:
@@ -127,8 +127,8 @@ class SebAgent(Agent):
 
     return safe_pieces
 
-  def check_potential_flips(self):
-    moves = get_valid_moves(self.chess_board, self.me)
+  def check_potential_flips(self, board, player, opp):
+    moves = get_valid_moves(board, player)
     dests = set()
     directions = get_directions()
     board_size = self.get_board_size()
@@ -142,12 +142,42 @@ class SebAgent(Agent):
         curr = (pos[0] + dir[0], pos[1] + dir[1])
 
         if 0 <= curr[0] < board_size and 0 <= curr[1] < board_size:
-          if self.chess_board[curr[0], curr[1]] == self.opp:
+          if self.chess_board[curr[0], curr[1]] == opp:
             flips += 1
 
     return flips
   
- 
+  def first_half_eval(self, board, player, opp):
+    center = self.check_center_ctrl(board, player, opp)
+    mobility = len(get_valid_moves(board, player)) - len(get_valid_moves(board, opp))
+    cluster = self.check_clusters(board, player)
+    safe = self.check_safety(board, player, opp)
+
+    return (5 * center) + (7 * mobility) - (4 * cluster) + (2 * safe)
+
+
+  def second_half_eval(self, board, player, opp):
+    _, p1, p2 = check_endgame(board)
+    score = 0
+
+    if player == 1:
+      score = p1 - p2
+
+    else:
+      score = p2 - p1
+
+    flips = self.check_potential_flips(board, player, opp)
+    cluster = self.check_center_ctrl(board, player, opp)
+    safe = self.check_safety(board, player, opp)
+
+    return (10 * score) + (6 * flips) - (3 * cluster) + (safe)
+  
+  def eval(self, board, player, opp):
+    if self.curr_empty_tiles > (self.initial_empty_tiles / 2):
+      return self.first_half_eval(board, player, opp)
+    
+    else:
+      return self.second_half_eval(board, player, opp)
 
 
   def step(self, chess_board, player, opponent):
@@ -178,6 +208,7 @@ class SebAgent(Agent):
     self.opp = opponent
     self.chess_board = deepcopy(chess_board)
     board_size = chess_board.shape[0]
+    self.curr_empty_tiles = 0
     if self.turn == 0:
       for r in range(board_size):
         for c in range (board_size):
