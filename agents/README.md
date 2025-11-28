@@ -30,6 +30,7 @@ python simulator.py --player_1 greedy_corners_agent --player_2 steve_agent --dis
 
 # Multiple
 python simulator.py --player_1 steve_agent --player_2 random_agent --autoplay --autoplay_runs 100
+python simulator.py --player_1 avram_agent --player_2 greedy_corners_agent --autoplay --autoplay_runs 100
 
 # Board selection
 python simulator.py --player_1 steve_agent --player_2 greedy_corners_agent --autoplay --autoplay_runs 200 --board_path boards/empty_7x7.csv
