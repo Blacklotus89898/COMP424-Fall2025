@@ -8,83 +8,6 @@ from copy import deepcopy
 import time
 from helpers import random_move, execute_move, check_endgame, get_valid_moves
 
-def do_minimax(self, board, p : Agent, o : Agent):
-  """
-  params
-  self
-  board := chess_board
-  p := player
-  o := opponent
-
-  
-  Do a form of mini max to find optimal move.
-  """
-
-
-  '''Attempt 0
-  # get the moves to look at
-  list_moves = get_valid_moves(board, p)
-
-  # print(len(list_moves))
-
-  scores = []
-
-  for i in list_moves:
-    temp_board = deepcopy(board)
-
-    execute_move(temp_board, i, p)
-
-    second_list = get_valid_moves(temp_board, o)
-
-    # return max_move
-  return list_moves[scores.index(max(scores))]
-  '''
-
-
-  """ attempt 1
-
-  # get the moves to look at
-  list_moves = get_valid_moves(board, p)
-
-  # print(len(list_moves))
-
-  scores = []
-
-  for i in list_moves:
-    temp_board = deepcopy(board)
-
-    execute_move(temp_board, i, p)
-
-    second_list = get_valid_moves(temp_board, o)
-
-    min_scores = []
-    for j in second_list:
-      second_temp = deepcopy(temp_board)
-
-      execute_move(second_temp, j, o)
-
-      min_scores.append(np.sum(temp_board == p))
-
-    min_move = min_scores.index(min(min_scores))
-
-    scores.append(min_move)
-  get the max move for p considering the min move from o
-    scores.append(np.sum(temp_board == p))
-  """
-
-
-  '''Attempt 2
-  
-  '''
-  # 1. get P moves and decide on one
-  # 2. get O moves and try to figure our wich one they'll pick
-  # 3. get another set of moves for P to figure out which 
-  # opponent's move would be least costly and to pick 1st move
-  # accordingly
-
-
-  return None
-
 @register_agent("avram_agent")
 class AvramAgent(Agent):
   """
@@ -95,10 +18,10 @@ class AvramAgent(Agent):
   def __init__(self):
     super(AvramAgent, self).__init__()
     self.name = "a_agent"
-    self.timelimit = 1.8
+    self.timelimit = 1.75
     self.starttime = 0
 
-  def evaluate_board(self, sim_board, prev_board, p, o):
+  def evaluate_board(self, sim_board, prev_board, p, o, is_jump):
     """
     Evaluate the board state based on multiple factors.
 
@@ -134,7 +57,7 @@ class AvramAgent(Agent):
     # comparing the gain of the player with the gain of the opponent
     # idea is that if players gets some, and opponent loses, the player should
     # see the opponent losing points as a positive too
-    pts_gain = 1.5 * ppts_gain - 0.9 * opts_gain
+    pts_gain = 1.1 * ppts_gain - 0.9 * opts_gain
 
 
     # check move restrictions
@@ -146,7 +69,7 @@ class AvramAgent(Agent):
 
     # moves_score = 0.8 * (p_moves_after - p_moves - (o_moves_after - o_moves))
     pm = p_moves_after - p_moves
-    om = o_moves_after - o_moves
+    om = -1.0 * o_moves_after - o_moves
 
     moves_score = 2.0 * pm - 1.0 * om
 
@@ -157,26 +80,32 @@ class AvramAgent(Agent):
     corner_bonus = sum(1 for (i, j) in corners if prev_board[i, j] == p) * 5.0
 
 
-    score = 100.0 * pts_gain + corner_bonus + moves_score
+    # a jump is less valuable
+    jumped = is_jump * 10
+
+    score = 50.0 * pts_gain 
 
     return score
   
 
-  def order_moves(self, b, moves, p, o):
+  def order_moves(self, b, moves, p, o, is_jump):
     scores = []
 
     for move in moves:
       cb = deepcopy(b)
       execute_move(cb, move, p)
 
-      score = self.evaluate_board(cb, b, p, o)
+      is_jump = (move.col_dest - move.col_src < 2 and 
+                 move.row_dest - move.row_src < 2)
+
+      score = self.evaluate_board(cb, b, p, o, is_jump)
       scores.append((score, move))
 
     scores.sort(key=lambda x: x[0], reverse=True)
     return [m for (_, m) in scores]
 
 
-  def doMax(self, sim_board, prev_board, p, o, depth, alpha, beta):
+  def doMax(self, sim_board, prev_board, p, o, depth, alpha, beta, is_jump):
     """
     Does a max evaluation of the given move, so scores from the player's
     perspective.
@@ -187,7 +116,7 @@ class AvramAgent(Agent):
     # check for end and/or time limit
     if (depth==0 or check_endgame(sim_board)[0] == True or
         time.time() - self.starttime > self.timelimit):
-      return self.evaluate_board(sim_board, prev_board, p, o)
+      return self.evaluate_board(sim_board, prev_board, p, o, is_jump)
 
     val = float("-inf")
 
@@ -195,16 +124,19 @@ class AvramAgent(Agent):
     if not moves:
       omoves = get_valid_moves(sim_board, o)
       if not omoves:
-        return self.evaluate_board(sim_board, prev_board, p, o)
-      return self.doMin(sim_board, prev_board, p, o, depth-1, alpha, beta)
+        return self.evaluate_board(sim_board, prev_board, p, o, is_jump)
+      return self.doMin(sim_board, prev_board, p, o, depth-1, alpha, beta, is_jump)
     
-    moves = self.order_moves(sim_board, moves, p, o)
+    moves = self.order_moves(sim_board, moves, p, o, is_jump)
     
     for move in moves:
       next_sim_board = deepcopy(sim_board)
       execute_move(next_sim_board, move, p)
 
-      child_val = self.doMin(next_sim_board, sim_board, p, o, depth-1, alpha, beta)
+      is_jump = (move.col_dest - move.col_src < 2 and 
+                 move.row_dest - move.row_src < 2)
+
+      child_val = self.doMin(next_sim_board, sim_board, p, o, depth-1, alpha, beta, is_jump)
 
       val = max(val, child_val)
 
@@ -214,7 +146,7 @@ class AvramAgent(Agent):
     return val
   
 
-  def doMin(self, sim_board, prev_board, p, o, depth, alpha, beta):
+  def doMin(self, sim_board, prev_board, p, o, depth, alpha, beta, is_jump):
     """
     Does a min eval from opponent's perspective
     
@@ -223,7 +155,7 @@ class AvramAgent(Agent):
     # check for end
     if (depth==0 or check_endgame(sim_board)[0] == True or
         time.time() - self.starttime > self.timelimit):
-      return self.evaluate_board(sim_board, prev_board, p, o)
+      return self.evaluate_board(sim_board, prev_board, p, o, is_jump)
 
     val = float("+inf")
 
@@ -231,16 +163,19 @@ class AvramAgent(Agent):
     if not moves:
       pmoves = get_valid_moves(sim_board, p)
       if not pmoves:
-        return self.evaluate_board(sim_board, prev_board, p, o)
-      return self.doMax(sim_board, prev_board, p, o, depth-1, alpha, beta)
+        return self.evaluate_board(sim_board, prev_board, p, o, is_jump)
+      return self.doMax(sim_board, prev_board, p, o, depth-1, alpha, beta, is_jump)
     
-    moves = self.order_moves(sim_board, moves, o, p)
+    moves = self.order_moves(sim_board, moves, o, p, is_jump)
     
     for move in moves:
       next_sim_board = deepcopy(sim_board)
       execute_move(next_sim_board, move, o)
 
-      child_val = self.doMax(next_sim_board, sim_board, p, o, depth-1, alpha, beta)
+      is_jump = (move.col_dest - move.col_src < 2 and 
+                 move.row_dest - move.row_src < 2)
+
+      child_val = self.doMax(next_sim_board, sim_board, p, o, depth-1, alpha, beta, is_jump)
 
       val = min(val, child_val)
 
@@ -248,6 +183,7 @@ class AvramAgent(Agent):
       if (beta <= alpha): break
 
     return val
+
 
   def stone_count_heuristic(self, sim_board, prev_board, p, o, is_jump : bool,
                             row_src, row_dest, col_src, col_dest):
@@ -355,7 +291,10 @@ class AvramAgent(Agent):
     #   sim_board = deepcopy(chess_board)
     #   execute_move(sim_board, move, player)
 
-    #   score = self.evaluate_board(sim_board, chess_board, player, opponent)
+    #   is_jump = (move.col_dest - move.col_src < 2 and 
+    #              move.row_dest - move.row_src < 2)
+
+    #   score = self.evaluate_board(sim_board, chess_board, player, opponent, is_jump)
 
     #   if (score > chosen_score):
     #     chosen_score = score
@@ -407,37 +346,15 @@ class AvramAgent(Agent):
       sim_board = deepcopy(chess_board)
       execute_move(sim_board, move, player)
 
+      is_jump = (move.col_dest - move.col_src < 2 and 
+                 move.row_dest - move.row_src < 2)
+
       score = self.doMin(sim_board, chess_board, player, opponent,
-                         2, alpha, beta)
+                         4, alpha, beta, is_jump)
 
       if (score > chosen_score):
         chosen_score = score
         chosen_move = move
-    
-
-    
-
-
-    """ MOVE EVALUATOR
-    
-    """
-
-    # sim_board1 = deepcopy(chess_board)
-    # sim_board2 = deepcopy(sim_board1)
-    # chosen_board = None
-    # for move in legal_moves:
-    #   sim_board2 = deepcopy(sim_board1)
-    #   execute_move(sim_board2, move, player)
-
-    #   score = self.doMax(sim_board2, sim_board1, player, opponent)
-
-    #   if (score > chosen_score):
-    #     chosen_score = score
-    #     chosen_move = move
-    #     chosen_board = sim_board2
-
-
-
 
 
     # time_taken = time.time() - self.starttime
