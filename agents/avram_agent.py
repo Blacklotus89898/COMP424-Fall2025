@@ -95,7 +95,8 @@ class AvramAgent(Agent):
   def __init__(self):
     super(AvramAgent, self).__init__()
     self.name = "a_agent"
-    self.timelimit = 1.9
+    self.timelimit = 1.8
+    self.starttime = 0
 
   def evaluate_board(self, sim_board, prev_board, p, o):
     """
@@ -144,7 +145,10 @@ class AvramAgent(Agent):
     o_moves_after = len(get_valid_moves(sim_board, o))
 
     # moves_score = 0.8 * (p_moves_after - p_moves - (o_moves_after - o_moves))
-    moves_score = 0.3 * (p_moves - o_moves)
+    pm = p_moves_after - p_moves
+    om = o_moves_after - o_moves
+
+    moves_score = 2.0 * pm - 1.0 * om
 
 
     # corner bonus
@@ -153,10 +157,24 @@ class AvramAgent(Agent):
     corner_bonus = sum(1 for (i, j) in corners if prev_board[i, j] == p) * 5.0
 
 
-    score = pts_gain + corner_bonus + moves_score
+    score = 100.0 * pts_gain + corner_bonus + moves_score
 
     return score
-    
+  
+
+  def order_moves(self, b, moves, p, o):
+    scores = []
+
+    for move in moves:
+      cb = deepcopy(b)
+      execute_move(cb, move, p)
+
+      score = self.evaluate_board(cb, b, p, o)
+      scores.append((score, move))
+
+    scores.sort(key=lambda x: x[0], reverse=True)
+    return [m for (_, m) in scores]
+
 
   def doMax(self, sim_board, prev_board, p, o, depth, alpha, beta):
     """
@@ -166,15 +184,21 @@ class AvramAgent(Agent):
 
     """
 
-    # check for end
-    if (depth==0 or check_endgame(sim_board)[0] == True):
+    # check for end and/or time limit
+    if (depth==0 or check_endgame(sim_board)[0] == True or
+        time.time() - self.starttime > self.timelimit):
       return self.evaluate_board(sim_board, prev_board, p, o)
 
     val = float("-inf")
 
     moves = get_valid_moves(sim_board, p)
     if not moves:
+      omoves = get_valid_moves(sim_board, o)
+      if not omoves:
+        return self.evaluate_board(sim_board, prev_board, p, o)
       return self.doMin(sim_board, prev_board, p, o, depth-1, alpha, beta)
+    
+    moves = self.order_moves(sim_board, moves, p, o)
     
     for move in moves:
       next_sim_board = deepcopy(sim_board)
@@ -197,14 +221,20 @@ class AvramAgent(Agent):
     """
 
     # check for end
-    if (depth==0 or check_endgame(sim_board)[0] == True):
+    if (depth==0 or check_endgame(sim_board)[0] == True or
+        time.time() - self.starttime > self.timelimit):
       return self.evaluate_board(sim_board, prev_board, p, o)
 
     val = float("+inf")
 
     moves = get_valid_moves(sim_board, o)
     if not moves:
+      pmoves = get_valid_moves(sim_board, p)
+      if not pmoves:
+        return self.evaluate_board(sim_board, prev_board, p, o)
       return self.doMax(sim_board, prev_board, p, o, depth-1, alpha, beta)
+    
+    moves = self.order_moves(sim_board, moves, o, p)
     
     for move in moves:
       next_sim_board = deepcopy(sim_board)
@@ -281,7 +311,7 @@ class AvramAgent(Agent):
     # Some simple code to help you with timing. Consider checking 
     # time_taken during your search and breaking with the best answer
     # so far when it nears 2 seconds.
-    start_time = time.time()
+    self.starttime = time.time()
 
     # get legal moves 
     legal_moves = get_valid_moves(chess_board, player)
@@ -410,17 +440,8 @@ class AvramAgent(Agent):
 
 
 
-    time_taken = time.time() - start_time
-
-    print("My AI's turn took ", time_taken, "seconds.")
+    # time_taken = time.time() - self.starttime
+    # print("My AI's turn took ", time_taken, "seconds.")
 
     return chosen_move
-
-    # this is just to test the learner funcs lol
-    # return valid_moves[0]
-
-
-    # Dummy return (you should replace this with your actual logic)
-    # Returning a random valid move as an example
-    # return random_move(chess_board,player)
 
