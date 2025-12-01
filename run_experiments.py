@@ -11,8 +11,8 @@ logging.basicConfig(level=logging.INFO)
 def run_specific_maps():
     # --- CONFIGURATION ---
     map_folder = "boards"  # The folder where your 5 maps are
-    player_1 = "steve_agent"  # Change to your agent name
-    player_2 = "greedy_corners_agent"
+    player_1 = "greedy_corners_agent"  # Change to your agent name
+    player_2 = "student_agent"
     # ---------------------
 
     # 2. Get list of all map files
